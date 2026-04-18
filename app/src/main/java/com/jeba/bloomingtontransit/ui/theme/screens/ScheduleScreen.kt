@@ -16,10 +16,7 @@ fun ScheduleScreen(viewModel: TransitViewModel, modifier: Modifier = Modifier) {
     val stopArrivals by viewModel.stopArrivals.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val selectedRouteId by viewModel.selectedRouteId.collectAsState()
-
-    val routeIds = remember(stopArrivals) {
-        stopArrivals.map { it.routeId }.distinct().sorted()
-    }
+    val routeIds by viewModel.activeRouteIds.collectAsState()
 
     val arrivalsForRoute = remember(selectedRouteId, stopArrivals) {
         if (selectedRouteId.isEmpty()) emptyList()
@@ -33,36 +30,43 @@ fun ScheduleScreen(viewModel: TransitViewModel, modifier: Modifier = Modifier) {
             modifier = Modifier.padding(16.dp)
         )
 
-        if (isLoading && routeIds.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else if (routeIds.isEmpty()) {
+        if (routeIds.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "No active routes",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Bloomington Transit may not be running right now.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Service hours: Mon–Sat 6am–11pm",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                if (isLoading) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = "Loading routes...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "No active routes",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "Bloomington Transit may not be running right now.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Service hours: Mon–Sat 6am–11pm",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         } else {
@@ -82,7 +86,7 @@ fun ScheduleScreen(viewModel: TransitViewModel, modifier: Modifier = Modifier) {
                     FilterChip(
                         selected = routeId == selectedRouteId,
                         onClick = { viewModel.selectRoute(routeId) },
-                        label = { Text("Route $routeId") }
+                        label = { Text(viewModel.getRouteDisplayName(routeId)) }
                     )
                 }
             }
@@ -129,11 +133,11 @@ fun ScheduleScreen(viewModel: TransitViewModel, modifier: Modifier = Modifier) {
                             ) {
                                 Column {
                                     Text(
-                                        text = "Stop ${arrival.stopId}",
+                                        text = arrival.stopId,
                                         style = MaterialTheme.typography.titleSmall
                                     )
                                     Text(
-                                        text = "Trip ${arrival.tripId}",
+                                        text = "Direction",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

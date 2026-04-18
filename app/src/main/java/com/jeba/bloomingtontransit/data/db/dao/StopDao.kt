@@ -19,4 +19,8 @@ interface StopDao {
 
     @Query("SELECT COUNT(*) FROM stops")
     suspend fun count(): Int
+
+    @Query("SELECT stopName FROM stops WHERE stopId = :stopId LIMIT 1")
+    suspend fun getStopName(stopId: String): String?
+
 }

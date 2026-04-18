@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.jeba.bloomingtontransit.data.repository.ArrivalResult
+import com.jeba.bloomingtontransit.data.repository.ArrivalTimeCalculator
 
 class TransitRepository {
 

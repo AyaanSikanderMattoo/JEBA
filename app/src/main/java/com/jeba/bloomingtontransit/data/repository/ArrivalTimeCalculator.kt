@@ -39,7 +39,7 @@ object ArrivalTimeCalculator {
         val nowSeconds = System.currentTimeMillis() / 1000L
 
         return allArrivals
-            .filter { it.routeId == routeId }
+            .filter { it.tripId == routeId || it.routeId == routeId || it.routeId.isEmpty() }
             .mapNotNull { arrival ->
                 val secondsAway = arrival.arrivalTimeUnix - nowSeconds
                 if (secondsAway < -30 || secondsAway > 5400) return@mapNotNull null

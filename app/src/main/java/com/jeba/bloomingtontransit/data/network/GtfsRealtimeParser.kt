@@ -42,6 +42,8 @@ object GtfsRealtimeParser {
             Log.d(TAG, "Parsing ${feed.entityCount} entities for trip updates")
 
             val arrivals = mutableListOf<StopArrival>()
+            val nowSeconds = System.currentTimeMillis() / 1000L
+            val feedTimestamp = feed.header.timestamp
 
             feed.entityList
                 .filter { it.hasTripUpdate() }
@@ -51,25 +53,37 @@ object GtfsRealtimeParser {
                     val tripId = tripUpdate.trip.tripId
 
                     tripUpdate.stopTimeUpdateList.forEach { stopTimeUpdate ->
-                        val arrivalTime = when {
-                            stopTimeUpdate.hasArrival() && stopTimeUpdate.arrival.hasTime() ->
+                        val arrivalTime: Long = when {
+                            stopTimeUpdate.hasArrival() && stopTimeUpdate.arrival.hasTime() && stopTimeUpdate.arrival.time > 0 ->
                                 stopTimeUpdate.arrival.time
-                            stopTimeUpdate.hasDeparture() && stopTimeUpdate.departure.hasTime() ->
+
+                            stopTimeUpdate.hasDeparture() && stopTimeUpdate.departure.hasTime() && stopTimeUpdate.departure.time > 0 ->
                                 stopTimeUpdate.departure.time
+
+                            stopTimeUpdate.hasArrival() && stopTimeUpdate.arrival.hasDelay() ->
+                                feedTimestamp + stopTimeUpdate.arrival.delay
+
+                            stopTimeUpdate.hasDeparture() && stopTimeUpdate.departure.hasDelay() ->
+                                feedTimestamp + stopTimeUpdate.departure.delay
+
                             else -> return@forEach
                         }
 
-                        arrivals.add(
-                            StopArrival(
-                                stopId = stopTimeUpdate.stopId,
-                                routeId = routeId,
-                                tripId = tripId,
-                                arrivalTimeUnix = arrivalTime
+                        val minutesAway = (arrivalTime - nowSeconds) / 60
+                        if (minutesAway >= -1 && minutesAway <= 90) {
+                            arrivals.add(
+                                StopArrival(
+                                    stopId = stopTimeUpdate.stopId,
+                                    routeId = routeId,
+                                    tripId = tripId,
+                                    arrivalTimeUnix = arrivalTime
+                                )
                             )
-                        )
+                        }
                     }
                 }
 
+            Log.d(TAG, "Total arrivals parsed: ${arrivals.size}")
             arrivals
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse trip updates: ${e.message}")
