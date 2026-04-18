@@ -1,93 +1,100 @@
 package com.jeba.bloomingtontransit
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
-import com.jeba.bloomingtontransit.data.network.GtfsRealtimeParser
-import com.jeba.bloomingtontransit.data.network.NetworkModule
-import com.jeba.bloomingtontransit.ui.theme.BloomingtonTransitTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import com.jeba.bloomingtontransit.data.repository.RepositoryProvider
-
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-
-import android.content.Context
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jeba.bloomingtontransit.data.db.StaticGtfsLoader
 import com.jeba.bloomingtontransit.data.db.TransitDatabase
+import com.jeba.bloomingtontransit.data.repository.RepositoryProvider
+import com.jeba.bloomingtontransit.ui.theme.screens.MapScreen
+import com.jeba.bloomingtontransit.ui.theme.screens.ScheduleScreen
+import com.jeba.bloomingtontransit.ui.theme.screens.TrackerScreen
+import com.jeba.bloomingtontransit.ui.theme.BloomingtonTransitTheme
+import com.jeba.bloomingtontransit.ui.theme.ViewModel.TransitViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val bytes = NetworkModule.api.getVehiclePositions().bytes()
-                val vehicles = GtfsRealtimeParser.parseVehiclePositions(bytes)
-
-                Log.d("PARSER_TEST", "Found ${vehicles.size} vehicles")
-
-                vehicles.take(3).forEach { v ->
-                    Log.d(
-                        "PARSER_TEST",
-                        "ID=${v.vehicleId} route=${v.routeId} lat=${v.lat} lon=${v.lon}"
-                    )
-                }
-
-            } catch (e: Exception) {
-                Log.e("PARSER_TEST", "Error: ${e.message}")
-            }
-        }
+        // Start DB load
         val db = TransitDatabase.getInstance(this)
         val loader = StaticGtfsLoader(this)
-
         lifecycleScope.launch(Dispatchers.IO) {
             loader.loadIfNeeded(db)
-            // Confirm it worked:
-            val stopCount = db.stopDao().count()
-            val routeCount = db.routeDao().count()
-            Log.d("DB_TEST", "DB ready: $stopCount stops, $routeCount routes")
         }
+
+        // Start polling
         val pollingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         RepositoryProvider.transitRepository.startPolling(pollingScope)
 
         enableEdgeToEdge()
         setContent {
             BloomingtonTransitTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                MainScreen()
             }
         }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun MainScreen() {
+    val viewModel: TransitViewModel = viewModel()
+    var selectedTab by remember { mutableIntStateOf(0) }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    BloomingtonTransitTheme {
-        Greeting("Android")
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    icon = { Icon(Icons.Filled.LocationOn, contentDescription = "Map") },
+                    label = { Text("Map") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    icon = { Icon(Icons.Filled.DateRange, contentDescription = "Schedule") },
+                    label = { Text("Schedule") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    icon = { Icon(Icons.Filled.Search, contentDescription = "Tracker") },
+                    label = { Text("Tracker") }
+                )
+            }
+        }
+    ) { innerPadding ->
+        when (selectedTab) {
+            0 -> MapScreen(
+                viewModel = viewModel,
+                modifier = Modifier.padding(innerPadding)
+            )
+            1 -> ScheduleScreen(
+                viewModel = viewModel,
+                modifier = Modifier.padding(innerPadding)
+            )
+            2 -> TrackerScreen(
+                viewModel = viewModel,
+                modifier = Modifier.padding(innerPadding)
+            )
+        }
     }
 }
